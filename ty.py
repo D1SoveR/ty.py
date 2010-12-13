@@ -2,12 +2,23 @@
 # -*- coding: UTF-8 -*-
 
 """
-TY.PY
-************************************
+ty.py
+-----------------------
 
 This module allows you to quickly implement the full-fledged
 type-checking in your functions!
 """
+
+__author__ = 'Mikołaj "D1SoveR" Banasik'
+__license__ = "WTFPL"
+
+__all__ = ["TypeCheckError",
+           "InputTypeCheckError",
+           "OutputTypeCheckError",
+           "typecheck",
+           "iall",
+           "iany",
+           "regex"]
 
 # Lack of callable() in Python 3
 
@@ -51,19 +62,12 @@ class TypeCheckError(TypeError):
         "Test (type, class, callable) that the element failed."
         return self._expected
 
-    def repr(self):
+    def __repr__(self):
         return "TypeCheckError({0}, {1}, {2})".format(
             repr(self._var_name),
             repr(self._var_value),
             self._expected.__name__
         )
-
-    def str(self):
-        return "'{0}' has failed the type check. Value {1} did not satisty the type-check condition {2}".format(
-                    repr(self._var_name),
-                    repr(self._var_value),
-                    self._expected.__name__
-                )
 
 class InputTypeCheckError(TypeCheckError):
 
@@ -240,7 +244,7 @@ def typecheck(f):
 # combinations and so on.
 #
 
-def all(*tests):
+def iall(*tests):
 
     """
     Factory function for chaining multiple types and callables
@@ -254,7 +258,7 @@ def all(*tests):
     >>> divide_by_2 = lambda x: True if x % 2 == 0 else False
     >>> divide_by_3 = lambda x: True if x % 3 == 0 else False
     >>> @typecheck
-    ... def int_of_6(passed_arg) -> all(int, divide_by_2, divide_by_3):
+    ... def int_of_6(passed_arg) -> iall(int, divide_by_2, divide_by_3):
     ...     return passed_arg
 
     >>> int_of_6(6)
@@ -286,7 +290,7 @@ def all(*tests):
         return True
     return f
 
-def any(*tests):
+def iany(*tests):
 
     """
     Factory function for chaining multiple types and callables
@@ -300,7 +304,7 @@ def any(*tests):
     >>> divide_by_4 = lambda x: True if x % 4 == 0 else False
     >>> longer_than_5 = lambda x: True if len(x) > 5 else False
     >>> @typecheck
-    ... def odd_func(passed_arg) -> any(int, divide_by_4, longer_than_5):
+    ... def odd_func(passed_arg) -> iany(int, divide_by_4, longer_than_5):
     ...     return passed_arg
 
     >>> odd_func(6)
@@ -323,6 +327,44 @@ def any(*tests):
             except TypeError:
                 pass
         return False
+    return f
+
+def regex(pattern, flags=None):
+
+    """
+    Convenience function for checking values against regular expressions.
+    Called with regex pattern and, optionally, flags (the same pattern and
+    syntax as in 're' module), returns a function that returns True for all
+    values matching the pattern and False otherwise:
+
+    >>> @typecheck
+    ... def foo(bar:regex("nob")):
+    ...     return "It is an amazing {0}.".format(bar)
+
+    >>> foo("knob")
+    'It is an amazing knob.'
+    >>> foo("snob")
+    'It is an amazing snob.'
+    >>> foo("wheel")
+    Traceback (most recent call last):
+        ...
+    InputTypeCheckError
+    """
+
+    # Prepare the matching
+    import re
+    proc = re.compile(pattern, flags) if flags else re.compile(pattern)
+
+    def f(x):
+
+        # If pattern requires matching from the beginning
+        # of the string (starts with caret "^"), save some
+        # processing by using .match() instead of .search()
+        if pattern[0] == "^":
+            return bool(proc.match(x))
+        else:
+            return bool(proc.search(x))
+
     return f
 
 #
