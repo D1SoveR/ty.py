@@ -59,9 +59,7 @@ class TypeCheckError(TypeError):
         )
 
     def str(self):
-        return "'{0}' has failed the type check. " + \
-               "Value {1} did not satisty the type-check " + \
-               "condition {2}".format(
+        return "'{0}' has failed the type check. Value {1} did not satisty the type-check condition {2}".format(
                     repr(self._var_name),
                     repr(self._var_value),
                     self._expected.__name__
@@ -229,11 +227,103 @@ def typecheck(f):
         if "return" in argspec.annotations:
             result = _check(output, argspec.annotations["return"])
             if not result:
-                raise OutputTypeCheckError(value, argspec.annotations[name])
+                raise OutputTypeCheckError(output, argspec.annotations["return"])
 
         return output
 
     return wrapper
+
+#
+# AUXILIARY FUNCTIONS
+# Additional functions that can be used for the type-checking
+# procedure. Short-hand functions on different kinds of checks,
+# combinations and so on.
+#
+
+def all(*tests):
+
+    """
+    Factory function for chaining multiple types and callables
+    for the type-checking. Supplied with the list of types and
+    callables, returns function that will only return True if
+    the subject passes all the tests.
+
+    This example will only allow output to be an integer and
+    and divisible by both 2 and 3 (thus, divisible by 6):
+    
+    >>> divide_by_2 = lambda x: True if x % 2 == 0 else False
+    >>> divide_by_3 = lambda x: True if x % 3 == 0 else False
+    >>> @typecheck
+    ... def int_of_6(passed_arg) -> all(int, divide_by_2, divide_by_3):
+    ...     return passed_arg
+
+    >>> int_of_6(6)
+    6
+    >>> int_of_6(4)
+    Traceback (most recent call last):
+        ...
+    OutputTypeCheckError
+    >>> int_of_6(9)
+    Traceback (most recent call last):
+        ...
+    OutputTypeCheckError
+    >>> int_of_6(12)
+    12
+    >>> int_of_6(6.0)
+    Traceback (most recent call last):
+        ...
+    OutputTypeCheckError
+    >>> int_of_6(9.0)
+    Traceback (most recent call last):
+        ...
+    OutputTypeCheckError
+    """
+
+    def f(x):
+        for test in tests:
+            if not _check(x, test):
+                return False
+        return True
+    return f
+
+def any(*tests):
+
+    """
+    Factory function for chaining multiple types and callables
+    for the type-checking. Supplied with the list of types and
+    callables, returns function that will return True if subject
+    passes at least one test
+
+    This example will allow output if it's an integer, divisible
+    by 4 or has length bigger than 5:
+    
+    >>> divide_by_4 = lambda x: True if x % 4 == 0 else False
+    >>> longer_than_5 = lambda x: True if len(x) > 5 else False
+    >>> @typecheck
+    ... def odd_func(passed_arg) -> any(int, divide_by_4, longer_than_5):
+    ...     return passed_arg
+
+    >>> odd_func(6)
+    6
+    >>> odd_func(4.0)
+    4.0
+    >>> odd_func("what is this")
+    'what is this'
+    >>> odd_func(5.0)
+    Traceback (most recent call last):
+        ...
+    OutputTypeCheckError
+    """
+
+    def f(x):
+        for test in tests:
+            try:
+                if _check(x, test):
+                    return True
+            except TypeError:
+                pass
+        return False
+    return f
 
 #
 # Doctest
