@@ -85,7 +85,7 @@ class InputTypeCheckError(TypeCheckError):
             raise TypeError("Input exception used on output. For output, use OutputTypeCheckError.")
         super().__init__(var_name, var_value, expected)
 
-class OutputTypeCheckError(TypeCheckError)
+class OutputTypeCheckError(TypeCheckError):
 
     """
     Type-checking exception raised when
@@ -143,11 +143,11 @@ def _check(subject, test):
 
     # Type / class check
     if type(test) == type:
-        return isinstance(value, test)
+        return isinstance(subject, test)
 
     # Callable check
     elif callable(test):
-        return bool(test(value))
+        return bool(test(subject))
 
     # For everything else (like actual annotations), just let it pass
     else:
@@ -162,16 +162,16 @@ def typecheck(f):
 
     >>> @typecheck
     ... def test_sum(firstarg:int, secondarg:int) -> float:
-    ...     return (firstarg + secondarg)
+    ...     return (firstarg + secondarg) * 1.0
 
     Such notation would mean that test_sum() requires
     first argument as integer, second argument as integer and
     the return value as float:
 
     >>> test_sum(1, 3)
-    4
+    4.0
     >>> test_sum(4, 6)
-    10
+    10.0
     >>> test_sum(2.5, 2.5)
     Traceback (most recent call last):
         ...
@@ -235,4 +235,9 @@ def typecheck(f):
 
     return wrapper
 
-
+#
+# Doctest
+#
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
